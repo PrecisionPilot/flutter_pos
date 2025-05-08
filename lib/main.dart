@@ -94,7 +94,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
 Future<OutputData> fetchData() async {
   final response = await http.get(
-    Uri.parse('https://jsonplaceholder.typicode.com/albums/1'),
+    Uri.parse('http://127.0.0.1:8080/'),
   );
 
   if (response.statusCode == 200) {
