@@ -34,6 +34,10 @@ class _MyHomePageState extends State<MyHomePage> {
   final myController = TextEditingController();
   Future<OutputData>? futureOutput;
 
+  // Helper that joins a list into a comma‑separated string.
+  String _join(List<String> words) =>
+  words.isEmpty ? '—' : words.join(', ');
+
   @override
   void dispose() {
     // Clean up the controller when the widget is disposed.
@@ -64,61 +68,107 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             FutureBuilder<OutputData>(
-            future: futureOutput,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const CircularProgressIndicator();
-              } else if (snapshot.hasError) {
-                return Text('Error: ${snapshot.error}');
-              } else if (snapshot.hasData) {
-                return Text(snapshot.data!.title);
-              }
-              return const Text('Press Fetch');
-            },
-          ),
+              future: futureOutput,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                } else if (snapshot.hasError) {
+                  return Text('Error: ${snapshot.error}');
+                } else if (snapshot.hasData) {
+                  return DataTable(columns: const [
+                    DataColumn(label: Text('Part of Speech', style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Words', style: TextStyle(fontWeight: FontWeight.bold))),
+                  ], rows: [
+                    DataRow(cells: [
+                      const DataCell(Text('Nouns')),
+                      DataCell(Text(_join(snapshot.data!.nouns))),
+                    ]),
+                    DataRow(cells: [
+                      const DataCell(Text('Proper Nouns')),
+                      DataCell(Text(_join(snapshot.data!.nouns)))
+                    ]),
+                    DataRow(cells: [
+                      const DataCell(Text('Pronouns')),
+                      DataCell(Text(_join(snapshot.data!.prons))),
+                    ]),
+                    DataRow(cells: [
+                      const DataCell(Text('Verbs')),
+                      DataCell(Text(_join(snapshot.data!.verbs))),
+                    ]),
+                    DataRow(cells: [
+                      const DataCell(Text('Adjectives')),
+                      DataCell(Text(_join(snapshot.data!.adjectives))),
+                    ]),
+                    DataRow(cells: [
+                      const DataCell(Text('Adverbs')),
+                      DataCell(Text(_join(snapshot.data!.adverbs))),
+                    ]),
+                  ],);
+                }
+                return const Text('Press Fetch');
+              },
+            ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
-            futureOutput = fetchData();
+            futureOutput = fetchData(myController.text);
           });
         },
-        child: Text("Parse")
+        child: Text("Parse"),
       ),
     );
   }
 }
 
-
-Future<OutputData> fetchData() async {
-  final response = await http.get(
+Future<OutputData> fetchData(String text) async {
+  final response = await http.post(
     Uri.parse('http://127.0.0.1:8080/'),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode(<String, String>{'text': text}),
   );
 
   if (response.statusCode == 200) {
-    return OutputData.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    return OutputData.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
   } else {
-    throw Exception('Failed to load album');
+    throw Exception('Failed to load words');
   }
 }
 
 class OutputData {
-  final int userId;
-  final int id;
-  final String title;
+  final List<String> nouns;
+  final List<String> propns;
+  final List<String> prons;
+  final List<String> verbs;
+  final List<String> adjectives;
+  final List<String> adverbs;
 
-  const OutputData({required this.userId, required this.id, required this.title});
+  const OutputData({
+    required this.nouns,
+    required this.propns,
+    required this.prons,
+    required this.verbs,
+    required this.adjectives,
+    required this.adverbs,
+  });
 
   factory OutputData.fromJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {'userId': int userId, 'id': int id, 'title': String title} => OutputData(
-        userId: userId,
-        id: id,
-        title: title,
-      ),
-      _ => throw const FormatException('Failed to load album.'),
-    };
+    List<String> _list(String key) =>
+        (json[key] as List<dynamic>).cast<String>();
+
+    return OutputData(
+      nouns: _list('nouns'),
+      propns: _list('propns'),
+      prons: _list('prons'),
+      verbs: _list('verbs'),
+      adjectives: _list('adjectives'),
+      adverbs: _list('adverbs'),
+    );
   }
 }
